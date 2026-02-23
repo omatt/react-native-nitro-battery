@@ -14,6 +14,7 @@ export interface NitroBattery
   isCharging(): boolean
   getBatteryState(): string
   isLowPowerModeEnabled(): boolean
+  isAppBatteryOptimized(): boolean
   addBatteryStateListener(listener: BatteryListener): void
   removeBatteryStateListener(listener: BatteryListener): void
   addLowPowerListener(listener: LowPowerListener): void

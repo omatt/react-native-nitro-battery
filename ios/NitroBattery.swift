@@ -18,18 +18,18 @@ class NitroBattery: HybridNitroBatterySpec {
     setupBatteryMonitoring()
     setupNotificationObservers()
   }
-  
+
   deinit {
     NotificationCenter.default.removeObserver(self)
     UIDevice.current.isBatteryMonitoringEnabled = false
   }
-  
+
   // MARK: - Setup Methods
-  
+
   private func setupBatteryMonitoring() {
     UIDevice.current.isBatteryMonitoringEnabled = true
   }
-  
+
   private func setupNotificationObservers() {
     NotificationCenter.default.addObserver(
       self,
@@ -52,7 +52,7 @@ class NitroBattery: HybridNitroBatterySpec {
   }
 
   // MARK: - Public API
-  
+
   func getLevel() -> Double {
     let level = UIDevice.current.batteryLevel
     // Return -1 if battery level is unavailable
@@ -63,13 +63,18 @@ class NitroBattery: HybridNitroBatterySpec {
     let state = UIDevice.current.batteryState
     return state == .charging || state == .full
   }
-  
+
   func getBatteryState() -> String {
     return getCurrentBatteryState()
   }
-  
+
   func isLowPowerModeEnabled() -> Bool {
     return ProcessInfo.processInfo.isLowPowerModeEnabled
+  }
+
+  func isAppBatteryOptimized() -> Bool {
+    // Always return false, no equivalent function on iOS
+    return false
   }
 
   func addBatteryStateListener(listener: @escaping (String) -> Void) -> String {
@@ -101,16 +106,16 @@ class NitroBattery: HybridNitroBatterySpec {
       self.lowPowerListeners.removeValue(forKey: listenerId)
     }
   }
-  
+
   func removeAllListeners() {
     listenerQueue.async(flags: .barrier) {
       self.batteryStateListeners.removeAll()
       self.lowPowerListeners.removeAll()
     }
   }
-  
+
   // MARK: - Private Helper Methods
-  
+
   private func getCurrentBatteryState() -> String {
     switch UIDevice.current.batteryState {
     case .charging:
@@ -125,7 +130,7 @@ class NitroBattery: HybridNitroBatterySpec {
       return "unknown"
     }
   }
-  
+
   private func notifyBatteryStateListeners(state: String) {
     listenerQueue.async {
       let listeners = self.batteryStateListeners.values
@@ -134,7 +139,7 @@ class NitroBattery: HybridNitroBatterySpec {
       }
     }
   }
-  
+
   private func notifyLowPowerListeners() {
     listenerQueue.async {
       let listeners = self.lowPowerListeners.values
@@ -145,7 +150,7 @@ class NitroBattery: HybridNitroBatterySpec {
   }
 
   // MARK: - Notification Handlers
-  
+
   @objc private func batteryStateDidChange() {
     let state = getCurrentBatteryState()
     notifyBatteryStateListeners(state: state)
