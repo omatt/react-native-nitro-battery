@@ -81,11 +81,6 @@ class NitroBattery : HybridNitroBatterySpec() {
 
   override fun isLowPowerModeEnabled(): Boolean {
     val pm = applicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
-    return pm.isPowerSaveMode
-  }
-
-  override fun isAppBatteryOptimized(): Boolean {
-    val pm = applicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
-    return pm.isIgnoringBatteryOptimizations(applicationContext.packageName)
+    return pm.isPowerSaveMode || !pm.isIgnoringBatteryOptimizations(applicationContext.packageName)
   }
 }
