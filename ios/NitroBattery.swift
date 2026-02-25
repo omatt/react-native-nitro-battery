@@ -8,8 +8,8 @@
 import UIKit
 
 class NitroBattery: HybridNitroBatterySpec {
-  private var batteryStateListeners: [String: (String) -> Void] = [:]
-  private var lowPowerListeners: [String: () -> Void] = [:]
+  private var batteryStateListeners: [BatteryListenerBox] = []
+  private var lowPowerListeners: [LowPowerListenerBox] = []
   private var listenerIdCounter: Int = 0
   private let listenerQueue = DispatchQueue(label: "com.nitrobattery.listeners", attributes: .concurrent)
 
@@ -64,46 +64,37 @@ class NitroBattery: HybridNitroBatterySpec {
     return state == .charging || state == .full
   }
 
-  func getBatteryState() -> String {
-    return getCurrentBatteryState()
-  }
-
   func isLowPowerModeEnabled() -> Bool {
     return ProcessInfo.processInfo.isLowPowerModeEnabled
   }
 
-  func isAppBatteryOptimized() -> Bool {
-    // Always return false, no equivalent function on iOS
-    return false
-  }
-
-  func addBatteryStateListener(listener: @escaping (String) -> Void) -> String {
-    return listenerQueue.sync(flags: .barrier) {
-      listenerIdCounter += 1
-      let listenerId = "battery_\(listenerIdCounter)"
-      batteryStateListeners[listenerId] = listener
-      return listenerId
-    }
-  }
-
-  func removeBatteryStateListener(listenerId: String) {
+  func addBatteryStateListener(listener: @escaping (String) -> Void) throws {
+    let box = BatteryListenerBox(listener)
     listenerQueue.async(flags: .barrier) {
-      self.batteryStateListeners.removeValue(forKey: listenerId)
+      self.batteryStateListeners.append(box)
     }
   }
 
-  func addLowPowerListener(listener: @escaping () -> Void) -> String {
-    return listenerQueue.sync(flags: .barrier) {
-      listenerIdCounter += 1
-      let listenerId = "lowpower_\(listenerIdCounter)"
-      lowPowerListeners[listenerId] = listener
-      return listenerId
-    }
-  }
-
-  func removeLowPowerListener(listenerId: String) {
+  func removeBatteryStateListener(listener: @escaping (String) -> Void) throws {
     listenerQueue.async(flags: .barrier) {
-      self.lowPowerListeners.removeValue(forKey: listenerId)
+      self.batteryStateListeners.removeAll {
+        $0.listener as AnyObject === listener as AnyObject
+      }
+    }
+  }
+
+  func addLowPowerListener(listener: @escaping () -> Void) throws {
+    let box = LowPowerListenerBox(listener)
+    listenerQueue.async(flags: .barrier) {
+      self.lowPowerListeners.append(box)
+    }
+  }
+
+  func removeLowPowerListener(listener: @escaping () -> Void) throws {
+    listenerQueue.async(flags: .barrier) {
+      self.lowPowerListeners.removeAll {
+        $0.listener as AnyObject === listener as AnyObject
+      }
     }
   }
 
@@ -114,26 +105,9 @@ class NitroBattery: HybridNitroBatterySpec {
     }
   }
 
-  // MARK: - Private Helper Methods
-
-  private func getCurrentBatteryState() -> String {
-    switch UIDevice.current.batteryState {
-    case .charging:
-      return "charging"
-    case .full:
-      return "full"
-    case .unplugged:
-      return "discharging"
-    case .unknown:
-      return "unknown"
-    @unknown default:
-      return "unknown"
-    }
-  }
-
   private func notifyBatteryStateListeners(state: String) {
     listenerQueue.async {
-      let listeners = self.batteryStateListeners.values
+      let listeners = self.batteryStateListeners.map { $0.listener }
       DispatchQueue.main.async {
         listeners.forEach { $0(state) }
       }
@@ -142,7 +116,7 @@ class NitroBattery: HybridNitroBatterySpec {
 
   private func notifyLowPowerListeners() {
     listenerQueue.async {
-      let listeners = self.lowPowerListeners.values
+    let listeners = self.lowPowerListeners.map { $0.listener }
       DispatchQueue.main.async {
         listeners.forEach { $0() }
       }
@@ -152,13 +126,13 @@ class NitroBattery: HybridNitroBatterySpec {
   // MARK: - Notification Handlers
 
   @objc private func batteryStateDidChange() {
-    let state = getCurrentBatteryState()
+    let state = getBatteryState()
     notifyBatteryStateListeners(state: state)
   }
 
   @objc private func batteryLevelDidChange() {
     // Optionally notify about level changes
-    let state = getCurrentBatteryState()
+    let state = getBatteryState()
     notifyBatteryStateListeners(state: state)
   }
 
@@ -177,7 +151,13 @@ class NitroBattery: HybridNitroBatterySpec {
     }
   }
 
-  func isLowPowerModeEnabled() -> Bool {
-    return ProcessInfo.processInfo.isLowPowerModeEnabled
+  private class BatteryListenerBox {
+    let listener: (String) -> Void
+    init(_ l: @escaping (String) -> Void) { listener = l }
+  }
+
+  private class LowPowerListenerBox {
+    let listener: () -> Void
+    init(_ l: @escaping () -> Void) { listener = l }
   }
 }
