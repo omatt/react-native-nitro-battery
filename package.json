@@ -1,6 +1,6 @@
 {
   "name": "nitro-battery",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "High-performance battery monitoring for React Native built with Nitro Modules. Forked from react-native-nitro-battery",
   "main": "lib/index",
   "module": "lib/index",
