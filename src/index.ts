@@ -39,7 +39,3 @@ export const getBatteryState = () => {
 export const isLowPowerModeEnabled = () => {
   return NitroBattery.isLowPowerModeEnabled()
 }
-
-export const isAppBatteryOptimized = () => {
-  return NitroBattery.isAppBatteryOptimized()
-}
